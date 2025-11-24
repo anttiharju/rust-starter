@@ -1,6 +1,6 @@
 name: Plan
 permissions:
-  contents: none
+  contents: write
   pull-requests: none
 on:
   pull_request:
@@ -11,17 +11,22 @@ on:
     outputs:
       version:
         description: "Version for the next release. Empty if no release is needed."
-        value: ${{ github.event.repository.name != 'go-starter' && jobs.validate.outputs.version || '' }}
+        value: ${{ github.event.repository.name != 'rust-starter' && jobs.validate.outputs.version || '' }}
       documentation:
         description: "Whether to update the documentation website"
         value: ${{ jobs.validate.outputs.documentation_changed == 'true' }}
       container:
         description: "Image in which all CI jobs should be ran"
         value: ${{ jobs.container.outputs.image }}
+    secrets:
+      ANTTIHARJU_BOT_ID:
+        required: true
+      ANTTIHARJU_BOT_PRIVATE_KEY:
+        required: true
 
 jobs:
   container:
-    if: github.event.repository.name != 'go-starter'
+    if: github.event.repository.name != 'rust-starter'
     name: Container
     runs-on: ubuntu-24.04
     permissions:
@@ -29,7 +34,7 @@ jobs:
     steps:
       - name: Find changes
         id: changes
-        uses: anttiharju/actions/find-changes@v0
+        uses: anttiharju/find-changes-action@v1
       - name: Compare changes
         id: flake
         uses: anttiharju/actions/compare-changes@v0
@@ -41,6 +46,9 @@ jobs:
         uses: cachix/install-nix-action@v31
         with:
           nix_path: nixpkgs=channel:nixos-25.05
+          extra_nix_config: |
+            extra-substituters = https://nix-community.cachix.org https://anttiharju.cachix.org
+            extra-trusted-public-keys = nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs= anttiharju.cachix.org-1:1/w1vNdGsG6EynEoWhjJLJ2rxqde2BP+wkKM+YdOxMQ=
       - if: steps.flake.outputs.changed == 'true'
         name: Parse container version
         id: container
@@ -91,6 +99,8 @@ jobs:
     name: Validate
     needs: container
     runs-on: ubuntu-24.04
+    permissions:
+      contents: write
     container:
       image: ${{ needs.container.outputs.image || format('ghcr.io/{0}/{1}-ci:latest', github.repository_owner, github.event.repository.name) }}
       credentials:
@@ -99,7 +109,7 @@ jobs:
     steps:
       - name: Find changes
         id: changes
-        uses: anttiharju/actions/find-changes@v0
+        uses: anttiharju/find-changes-action@v1
 
       - name: Detect changes
         id: changed
@@ -107,7 +117,24 @@ jobs:
         with:
           changes: ${{ steps.changes.outputs.array }}
 
-      - if: always() && !cancelled() && (steps.changed.outputs.binary == 'true' || steps.changed.outputs.release == 'true' || github.event_name == 'push')
+      - env:
+          TARGET: aarch64-apple-darwin
+          CC: ./.release/zcc.sh
+          SDKROOT: /dev/null
+        run: |
+          cargo build --target aarch64-apple-darwin
+      - env:
+          TARGET: x86_64-unknown-linux-gnu
+          CC: ./.release/zcc.sh
+        run: |
+          cargo build --target x86_64-unknown-linux-gnu
+      - env:
+          TARGET: aarch64-unknown-linux-gnu
+          CC: ./.release/zcc.sh
+        run: |
+          cargo build --target aarch64-unknown-linux-gnu
+
+      - if: always() && !cancelled() && (steps.changed.outputs.binary == 'true' || steps.changed.outputs.release == 'true' || github.event_name == 'push') && ! endsWith(github.event.head_commit.author.name, '[bot]')
         id: semantic
         name: Require semantic version label
         uses: anttiharju/actions/semver-label@v0
@@ -133,25 +160,6 @@ jobs:
         name: EditorConfig-Checker
         run: |
           git ls-files -z | xargs -0 editorconfig-checker
-
-      - if: always() && !cancelled() && (steps.changed.outputs.binary == 'true' || github.event_name == 'push')
-        name: Ensure go.mod has matching Go version
-        uses: ./.github/actions/match-go-version
-
-      - if: always() && !cancelled() && (steps.changed.outputs.binary == 'true' || github.event_name == 'push')
-        name: go build
-        run: |
-          go build
-
-      - if: always() && !cancelled() && (steps.changed.outputs.binary == 'true' || github.event_name == 'push')
-        name: go test
-        shell: sh
-        run: |
-          go test ./...
-
-      - if: always() && !cancelled() && (steps.changed.outputs.go_code == 'true' || github.event_name == 'push')
-        name: golangci-lint
-        run: golangci-lint run
 
       - if: always() && !cancelled()
         name: Keep .yml
@@ -181,6 +189,36 @@ jobs:
         name: shellcheck
         run: |
           git ls-files -z '*.sh' | xargs -0 shellcheck --color=always
+
+      - if: steps.semantic.outputs.version != '' && github.event_name == 'push' && github.ref_name == github.event.repository.default_branch && !endsWith(github.event.head_commit.author.name, '[bot]')
+        name: Create release commit
+        uses: ./.github/actions/commit-release
+        with:
+          version: ${{ steps.semantic.outputs.version }}
+          ANTTIHARJU_BOT_ID: ${{ secrets.ANTTIHARJU_BOT_ID }}
+          ANTTIHARJU_BOT_PRIVATE_KEY: ${{ secrets.ANTTIHARJU_BOT_PRIVATE_KEY }}
+
+      - if: github.event_name == 'push' && github.ref_name == github.event.repository.default_branch && endsWith(github.event.head_commit.author.name, '[bot]')
+        id: parse
+        name: Parse release commit
+        env:
+          expected_bot: ${{ github.event.head_commit.author.name }}
+        run: |
+          commit_author="$(git log -1 --pretty=format:'%an')"
+          commit_committer="$(git log -1 --pretty=format:'%cn')"
+
+          if [[ "$commit_author" == "$expected_bot" && "$commit_committer" == "$expected_bot" ]]; then
+            commit_message="$(git log -1 --pretty=format:'%s')"
+            if [[ "$commit_message" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "version=$commit_message"
+              echo "version=$commit_message" >> "$GITHUB_OUTPUT"
+            else
+              echo "Commit message does not match semver format: $commit_message"
+            fi
+          else
+            echo "Author or committer does not match expected bot: $expected_bot"
+            echo "Author: $commit_author, Committer: $commit_committer"
+          fi
     outputs:
-      version: ${{ steps.semantic.outputs.version }}
+      version: ${{ steps.semantic.outputs.version || steps.parse.outputs.version }}
       documentation_changed: ${{ steps.changed.outputs.documentation }}

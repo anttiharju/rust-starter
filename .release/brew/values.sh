@@ -6,7 +6,8 @@ capture() {
   echo "export $1=\"$2\""
 }
 
-repo="$(basename "$GITHUB_REPOSITORY")"
+repo_root="$(git rev-parse --show-toplevel)"
+repo="$(yq -p toml -oy '.package.name' "$repo_root/Cargo.toml")"
 capture PKG_REPO "$repo"
 class="$(echo "$repo" | awk -F'-' '{for(i=1;i<=NF;i++) printf "%s%s", toupper(substr($i,1,1)), substr($i,2)}')"
 capture PKG_CLASS "$class"
@@ -14,10 +15,12 @@ desc="$(gh repo view --json description --jq .description)"
 capture PKG_DESC "$desc"
 homepage="$(gh api "repos/$GITHUB_REPOSITORY" --jq .homepage)"
 capture PKG_HOMEPAGE "$homepage"
-capture PKG_VERSION "${TAG#v}"
+version="$(yq -p toml -oy '.package.version' "$repo_root/Cargo.toml")"
+capture PKG_VERSION "$version"
 capture PKG_OWNER "${GITHUB_REPOSITORY%%/*}"
 
-if [[ "$TAG" = "v0.0.0" ]]; then
+tag="v$version"
+if [[ "$version" = "0.0.0" ]] || ! gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag" &>/dev/null; then
   capture PKG_MAC_INTEL_SHA TBD
   capture PKG_MAC_ARM_SHA TBD
   capture PKG_LINUX_INTEL_SHA TBD
@@ -25,18 +28,15 @@ if [[ "$TAG" = "v0.0.0" ]]; then
   exit 0
 fi
 
-repo_root="$(git rev-parse --show-toplevel)"
 cd "$repo_root"
-pattern="$repo-*64.tar.gz"
-gh release download "$TAG" --pattern "$pattern" --clobber
+pattern="$repo-*.tar.gz"
+gh release download "$tag" --pattern "$pattern" --clobber
 for binary in $pattern; do
   echo "# $binary"
 done
-mac_intel_sha="$(shasum -a 256 "$repo-darwin-amd64.tar.gz" | cut -d ' ' -f1)"
-capture PKG_MAC_INTEL_SHA "$mac_intel_sha"
-mac_arm_sha="$(shasum -a 256 "$repo-darwin-arm64.tar.gz" | cut -d ' ' -f1)"
+mac_arm_sha="$(hashsum --sha256 "$repo-aarch64-apple-darwin.tar.gz" | cut -d ' ' -f1)"
 capture PKG_MAC_ARM_SHA "$mac_arm_sha"
-linux_intel_sha="$(shasum -a 256 "$repo-linux-amd64.tar.gz" | cut -d ' ' -f1)"
+linux_intel_sha="$(hashsum --sha256 "$repo-x86_64-unknown-linux-gnu.tar.gz" | cut -d ' ' -f1)"
 capture PKG_LINUX_INTEL_SHA "$linux_intel_sha"
-linux_arm_sha="$(shasum -a 256 "$repo-linux-arm64.tar.gz" | cut -d ' ' -f1)"
+linux_arm_sha="$(hashsum --sha256 "$repo-aarch64-unknown-linux-gnu.tar.gz" | cut -d ' ' -f1)"
 capture PKG_LINUX_ARM_SHA "$linux_arm_sha"

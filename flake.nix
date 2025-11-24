@@ -1,11 +1,19 @@
 {
-  description = "Go development environment";
+  description = "Rust development environment";
 
+  nixConfig.extra-substituters = [
+    "https://nix-community.cachix.org"
+    "https://anttiharju.cachix.org"
+  ];
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs?ref=nixos-25.05";
     nixpkgs-unstable.url = "github:nixos/nixpkgs?ref=nixos-unstable";
     nur-anttiharju.url = "github:anttiharju/nur-packages";
     nur-anttiharju.inputs.nixpkgs.follows = "nixpkgs";
+    fenix = {
+      url = "github:nix-community/fenix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
@@ -14,6 +22,7 @@
       nixpkgs,
       nixpkgs-unstable,
       nur-anttiharju,
+      fenix,
       ...
     }:
     let
@@ -27,13 +36,29 @@
       forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
 
       devPackages =
-        pkgs: pkgs-unstable: anttiharju: system: with pkgs; [
-          go
+        pkgs: pkgs-unstable: anttiharju: system:
+        with pkgs;
+        let
+          rustToolchain = fenix.packages.${system}.combine [
+            (fenix.packages.${system}.stable.withComponents [
+              "cargo"
+              "clippy"
+              "rustc"
+              "rustfmt"
+              "rust-src"
+            ])
+            fenix.packages.${system}.targets.aarch64-apple-darwin.stable.rust-std
+            fenix.packages.${system}.targets.x86_64-unknown-linux-gnu.stable.rust-std
+            fenix.packages.${system}.targets.aarch64-unknown-linux-gnu.stable.rust-std
+          ];
+        in
+        [
+          rustToolchain
+          zig
           action-validator
           actionlint
           anttiharju.relcheck
           editorconfig-checker
-          golangci-lint
           (python313.withPackages (
             ps: with ps; [
               mkdocs-material
@@ -43,8 +68,10 @@
           rubocop
           shellcheck
           gh
+          yq-go
+          toml-cli
           # Everything below is required by GitHub Actions
-          coreutils
+          uutils-coreutils-noprefix
           bash
           git
           findutils
@@ -54,7 +81,6 @@
           gzip
           envsubst
           gawkInteractive
-          perl # for shasum
           xz
           gnugrep
         ];
@@ -70,7 +96,9 @@
         in
         {
           default = pkgs.mkShell {
-            packages = devPackages pkgs pkgs-unstable anttiharju system;
+            packages = (devPackages pkgs pkgs-unstable anttiharju system) ++ [
+              fenix.packages.${system}.stable.rust-analyzer
+            ];
 
             shellHook = "lefthook install";
           };

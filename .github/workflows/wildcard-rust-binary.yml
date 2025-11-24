@@ -6,9 +6,10 @@ on:
     branches:
       - wildcard
     paths:
-      - "internal/**/*"
-      - "*.go"
-      - "go.*"
+      - ".cargo/**/*"
+      - "src/**/*"
+      - "Cargo.lock"
+      - "Cargo.toml"
 
 jobs:
   wildcard:

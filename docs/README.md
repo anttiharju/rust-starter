@@ -1,3 +1,3 @@
-# Introduction
+# rust-starter
 
-`go-starter` is a template for my Go projects to make it easier to start new ones.
+This is the project-focused README.

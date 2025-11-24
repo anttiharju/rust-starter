@@ -1,10 +1,11 @@
 {
   lib,
-  buildGoModule,
+  rustPlatform,
   fetchFromGitHub,
+  nix-update-script,
 }:
 
-buildGoModule rec {
+rustPlatform.buildRustPackage rec {
   pname = "${PKG_REPO}";
   version = "${PKG_VERSION}";
   revision = "${PKG_REV}";
@@ -16,15 +17,9 @@ buildGoModule rec {
     hash = "${PKG_HASH}";
   };
 
-  vendorHash = null;
-
-  ldflags = [
-    "-s"
-    "-w"
-    "-X main.revision=$${revision}"
-    "-X main.version=$${version}"
-    "-X main.time=${PKG_TIME}"
-  ];
+  cargoLock = {
+    lockFile = ./Cargo.lock;
+  };
 
   meta = {
     homepage = "${PKG_HOMEPAGE}";
