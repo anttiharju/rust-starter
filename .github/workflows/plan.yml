@@ -143,6 +143,11 @@ jobs:
       - if: always() && !cancelled() && (steps.changed.outputs.src == 'true' || github.event_name == 'push')
         run: scripts/exitcode.sh
 
+      - if: always() && !cancelled()
+        name: relcheck
+        run: |
+          relcheck all --verbose --color=always
+
       - if: always() && !cancelled() && (steps.changed.outputs.rust == 'true' || steps.changed.outputs.release == 'true' || github.event_name == 'push') && ! endsWith(github.event.head_commit.author.name, '[bot]')
         id: semantic
         name: Require semantic version label
@@ -159,11 +164,6 @@ jobs:
         name: actionlint
         run: |
           actionlint -color
-
-      - if: always() && !cancelled()
-        name: relcheck
-        run: |
-          relcheck all --verbose --color=always
 
       - if: always() && !cancelled()
         name: EditorConfig-Checker
