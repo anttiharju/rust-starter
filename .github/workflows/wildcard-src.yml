@@ -6,8 +6,7 @@ on:
     branches:
       - wildcard
     paths:
-      - ".github/workflows/*.yml"
-      - "**/action.yml"
+      - "src/**"
       - "flake.nix"
       - "flake.lock"
 jobs:

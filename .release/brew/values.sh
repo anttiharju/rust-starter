@@ -6,8 +6,7 @@ capture() {
   echo "export $1=\"$2\""
 }
 
-repo_root="$(git rev-parse --show-toplevel)"
-repo="$(yq -p toml -oy '.package.name' "$repo_root/Cargo.toml")"
+repo="${GITHUB_REPOSITORY##*/}"
 capture PKG_REPO "$repo"
 class="$(echo "$repo" | awk -F'-' '{for(i=1;i<=NF;i++) printf "%s%s", toupper(substr($i,1,1)), substr($i,2)}')"
 capture PKG_CLASS "$class"
@@ -15,6 +14,7 @@ desc="$(gh repo view --json description --jq .description)"
 capture PKG_DESC "$desc"
 homepage="$(gh api "repos/$GITHUB_REPOSITORY" --jq .homepage)"
 capture PKG_HOMEPAGE "$homepage"
+repo_root="$(git rev-parse --show-toplevel)"
 version="$(yq -p toml -oy '.package.version' "$repo_root/Cargo.toml")"
 capture PKG_VERSION "$version"
 capture PKG_OWNER "${GITHUB_REPOSITORY%%/*}"
@@ -31,12 +31,12 @@ fi
 cd "$repo_root"
 pattern="$repo-*.tar.gz"
 gh release download "$tag" --pattern "$pattern" --clobber
-for binary in $pattern; do
-  echo "# $binary"
+for archive in $pattern; do
+  echo "# $archive"
 done
 mac_arm_sha="$(hashsum --sha256 "$repo-aarch64-apple-darwin.tar.gz" | cut -d ' ' -f1)"
 capture PKG_MAC_ARM_SHA "$mac_arm_sha"
-linux_intel_sha="$(hashsum --sha256 "$repo-x86_64-unknown-linux-gnu.tar.gz" | cut -d ' ' -f1)"
-capture PKG_LINUX_INTEL_SHA "$linux_intel_sha"
 linux_arm_sha="$(hashsum --sha256 "$repo-aarch64-unknown-linux-gnu.tar.gz" | cut -d ' ' -f1)"
 capture PKG_LINUX_ARM_SHA "$linux_arm_sha"
+linux_intel_sha="$(hashsum --sha256 "$repo-x86_64-unknown-linux-gnu.tar.gz" | cut -d ' ' -f1)"
+capture PKG_LINUX_INTEL_SHA "$linux_intel_sha"

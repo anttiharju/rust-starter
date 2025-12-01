@@ -1,3 +1,10 @@
+mod cli;
+mod exitcode;
+
 fn main() {
-    println!("Hello, world!");
+    cli::parse_args();
+
+    println!("Hello world!");
+
+    std::process::exit(exitcode::example_error());
 }

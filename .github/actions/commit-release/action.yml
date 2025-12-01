@@ -26,20 +26,32 @@ runs:
       with:
         token: ${{ steps.generate.outputs.token }}
         path: release
-    - name: Create release commit
+    - name: Update version
       working-directory: release
       shell: sh
       env:
         version: ${{ inputs.version }}
+        package: ${{ github.event.repository.name }}
       run: |
         git reset --hard && git clean -df
         toml set Cargo.toml package.version "$version" > Cargo.toml.tmp && mv Cargo.toml.tmp Cargo.toml
-        toml set Cargo.lock "package[0].version" "$version" > Cargo.lock.tmp && mv Cargo.lock.tmp Cargo.lock
+        cargo update --package "$package"
         yq -i ".inputs.version.default = \"$version\"" action.yml
+
+        export major="${version%%.*}"
+        git ls-files -z | xargs --null gawk -i inplace -v repo="$GITHUB_REPOSITORY" -v major="$major" '{gsub(repo "@v[0-9]+", repo "@v" major); print}'
+    - name: Get pull request number
+      id: pr
+      shell: sh
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        pr_number="$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/pulls" --jq '.[0].number')"
+        echo "number=$pr_number" >> "$GITHUB_OUTPUT"
     - name: Commit changes
       uses: anttiharju/actions/commit-changes@v0
       with:
         author: "${{ github.actor }}[bot]"
         committer: "${{ github.actor }}[bot]"
-        message: ${{ inputs.version }}
+        message: "${{ inputs.version }}${{ steps.pr.outputs.number && format(' #{0}', steps.pr.outputs.number) || '' }}"
         working-directory: release

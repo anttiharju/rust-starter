@@ -72,6 +72,8 @@ jobs:
           repository: anttiharju/nur-packages
           token: ${{ steps.generate-token.outputs.token }}
           path: nur-packages
+      - working-directory: nur-packages
+        run: nix flake update
       - name: Source values and render template # TODO: use release/render.sh for this, needs output param
         env:
           GH_TOKEN: ${{ github.token }} # values script may use gh cli that needs this
@@ -87,7 +89,7 @@ jobs:
           working-directory: nur-packages
           committer: ${{ github.actor }}
           message: |
-            Update ${{ github.event.repository.name }} to ${{ inputs.version }}
+            ${{ github.event.repository.name }} ${{ inputs.version }}
 
             https://github.com/${{ github.repository }}/blob/${{ github.sha }}/.github/workflows/release.yml
 
@@ -108,22 +110,19 @@ jobs:
         shell: sh
         run: |
           git tag "$tag"
+      - name: Cache
+        uses: ./.github/actions/cache
       - name: Create aarch64-apple-darwin archive
         env:
-          target: aarch64-apple-darwin
           SDKROOT: /dev/null
         run: |
-          ./.release/archive.sh "$tag" "$target"
-      - name: Create x86_64-unknown-linux-gnu archive
-        env:
-          target: x86_64-unknown-linux-gnu
-        run: |
-          ./.release/archive.sh "$tag" "$target"
+          .release/archive.sh "$tag" aarch64-apple-darwin
       - name: Create aarch64-unknown-linux-gnu archive
-        env:
-          target: aarch64-unknown-linux-gnu
         run: |
-          ./.release/archive.sh "$tag" "$target"
+          .release/archive.sh "$tag" aarch64-unknown-linux-gnu
+      - name: Create x86_64-unknown-linux-gnu archive
+        run: |
+          .release/archive.sh "$tag" x86_64-unknown-linux-gnu
       - name: Release
         shell: sh
         env:
@@ -183,6 +182,6 @@ jobs:
           working-directory: homebrew-tap
           committer: ${{ github.actor }}
           message: |
-            Update ${{ github.event.repository.name }} to ${{ inputs.version }}
+            ${{ github.event.repository.name }} ${{ inputs.version }}
 
             https://github.com/${{ github.repository }}/blob/${{ github.sha }}/.github/workflows/release.yml

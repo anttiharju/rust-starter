@@ -2,19 +2,26 @@ output:
   - success
   - failure
 
+pre-push:
+  parallel: true
+  jobs:
+    - glob: "{.cargo/*,src/*,tests/*,Cargo.lock,Cargo.toml}"
+      run: cargo test --all-features
+    - glob: "*.rs"
+      run: cargo clippy -- --deny warnings
+
 # Match to plan.yml
 pre-commit:
   parallel: true
   jobs:
-    - glob: "{.cargo/*,src/*,Cargo.lock,Cargo.toml}"
+    - glob: "{.cargo/*,src/*,tests/*,Cargo.lock,Cargo.toml}"
       env:
-        TARGET: aarch64-apple-darwin
-        CC: ./.release/zcc.sh
         SDKROOT: /dev/null
-      run: cargo build --target aarch64-apple-darwin
+      run: cargo build --all-features
     # action-validator does not play well with nix-direnv (it scans all files instead of ones in version control)
+    # also disabled because it uses glob instead of compare-changes
     # - name: action-validator
-    #   run: git ls-files -z '.github/workflows/*.yml' '*/action.yml' | xargs -0 action-validator --verbose
+    #   run: git ls-files -z '.github/workflows/*.yml' '*/action.yml' | xargs --null action-validator --verbose
 
     - name: actionlint
       glob: ".github/workflows/*.yml"
@@ -41,13 +48,24 @@ pre-commit:
 
     - name: rubocop
       glob: "{*.rb}"
-      run: ./.release/render.sh brew && find .release/brew -name "*.rb" -type f -not -name "*template.rb" -and -not -name "*.tpl.rb" -exec rubocop {} \;
+      run: .release/render.sh brew && find .release/brew -name "*.rb" -type f -not -name "*template.rb" -and -not -name "*.tpl.rb" -exec rubocop {} \;
 
     - name: shellcheck
       glob: "{*.sh,.shellcheckrc}"
-      run: git ls-files -z '*.sh' | xargs -0 shellcheck --color=always
+      run: git ls-files -z '*.sh' | xargs --null shellcheck --color=always
 
     - name: nixfmt
       glob: "*.nix"
       run: nixfmt {staged_files}
+      stage_fixed: true
+
+    - glob: "*.rs"
+      run: cargo fmt
+      stage_fixed: true
+
+    - glob: "src/*"
+      run: scripts/exitcode.sh
+
+    - glob: "*.rs"
+      run: cargo clippy --fix --allow-staged
       stage_fixed: true
