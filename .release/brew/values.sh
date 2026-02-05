@@ -7,7 +7,10 @@ capture() {
 }
 
 repo="${GITHUB_REPOSITORY##*/}"
+capture PKG_FILENAME "$repo"
+capture PKG_EXTENSION rb
 capture PKG_REPO "$repo"
+capture PKG_EXTENSION rb
 class="$(echo "$repo" | awk -F'-' '{for(i=1;i<=NF;i++) printf "%s%s", toupper(substr($i,1,1)), substr($i,2)}')"
 capture PKG_CLASS "$class"
 desc="$(gh repo view --json description --jq .description)"
@@ -28,15 +31,15 @@ if [[ "$version" = "0.0.0" ]] || ! gh api "repos/$GITHUB_REPOSITORY/git/ref/tags
   exit 0
 fi
 
-cd "$repo_root"
+cd "$repo_root/.release/brew"
 pattern="$repo-*.tar.gz"
 gh release download "$tag" --pattern "$pattern" --clobber
 for archive in $pattern; do
   echo "# $archive"
 done
-mac_arm_sha="$(hashsum --sha256 "$repo-aarch64-apple-darwin.tar.gz" | cut -d ' ' -f1)"
+mac_arm_sha="$([[ -f "$repo-aarch64-apple-darwin.tar.gz" ]] && hashsum --sha256 "$repo-aarch64-apple-darwin.tar.gz" --no-names || echo "TBD")"
 capture PKG_MAC_ARM_SHA "$mac_arm_sha"
-linux_arm_sha="$(hashsum --sha256 "$repo-aarch64-unknown-linux-gnu.tar.gz" | cut -d ' ' -f1)"
+linux_arm_sha="$([[ -f "$repo-aarch64-unknown-linux-gnu.tar.gz" ]] && hashsum --sha256 "$repo-aarch64-unknown-linux-gnu.tar.gz" --no-names || echo "TBD")"
 capture PKG_LINUX_ARM_SHA "$linux_arm_sha"
-linux_intel_sha="$(hashsum --sha256 "$repo-x86_64-unknown-linux-gnu.tar.gz" | cut -d ' ' -f1)"
+linux_intel_sha="$([[ -f "$repo-x86_64-unknown-linux-gnu.tar.gz" ]] && hashsum --sha256 "$repo-x86_64-unknown-linux-gnu.tar.gz" --no-names || echo "TBD")"
 capture PKG_LINUX_INTEL_SHA "$linux_intel_sha"

@@ -37,7 +37,7 @@ jobs:
         uses: anttiharju/find-changes-action@v1
       - name: Compare changes
         id: flake
-        uses: anttiharju/compare-changes@v0
+        uses: anttiharju/compare-changes-action@v0
         with:
           github-workflows-wildcard: flake.yml
           changes: ${{ steps.changes.outputs.array }}
@@ -50,11 +50,12 @@ jobs:
             trusted-substituters = https://cache.nixos.org https://nix-community.cachix.org https://anttiharju.cachix.org
             trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs= anttiharju.cachix.org-1:1/w1vNdGsG6EynEoWhjJLJ2rxqde2BP+wkKM+YdOxMQ=
             accept-flake-config = true
+            access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
       - if: steps.flake.outputs.changed == 'true'
         name: Parse container version
         id: container
         run: |
-          version="$(nix eval .#container_version --raw)"
+          version=current
           echo "version=$version"
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
@@ -93,6 +94,14 @@ jobs:
           if [[ "$local_digest" != "$remote_digest" ]]; then
             docker push "$image"
           fi
+      - if: steps.flake.outputs.changed == 'true' && github.event_name == 'push' && github.ref_name == github.event.repository.default_branch
+        name: Delete untagged versions
+        uses: actions/delete-package-versions@v5
+        with:
+          package-name: ${{ github.event.repository.name }}-ci
+          package-type: container
+          min-versions-to-keep: 1
+          delete-only-untagged-versions: false
     outputs:
       image: ${{ steps.tag.outputs.image }}
 
@@ -118,13 +127,18 @@ jobs:
         with:
           changes: ${{ steps.changes.outputs.array }}
 
+      - if: always() && !cancelled() && (steps.changed.outputs.rust == 'true' || steps.changed.outputs.release == 'true' || github.event_name == 'push') && ! endsWith(github.event.head_commit.author.name, '[bot]')
+        id: semantic
+        name: Require semantic version label
+        uses: ./.github/actions/semver-label
+        with:
+          require: ${{ steps.changed.outputs.rust == 'true' || steps.changed.outputs.release == 'true' }}
+
       - if: always() && !cancelled() && (steps.changed.outputs.rust == 'true' || github.event_name == 'push')
         name: Cache
         uses: ./.github/actions/cache
 
       - if: always() && !cancelled() && (steps.changed.outputs.rust == 'true' || github.event_name == 'push')
-        env:
-          SDKROOT: /dev/null
         run: cargo build --all-features --target aarch64-apple-darwin
       - if: always() && !cancelled() && (steps.changed.outputs.rust == 'true' || github.event_name == 'push')
         run: cargo build --all-features --target aarch64-unknown-linux-gnu
@@ -140,20 +154,10 @@ jobs:
       - if: always() && !cancelled() && (steps.changed.outputs.rs == 'true' || github.event_name == 'push')
         run: cargo clippy -- --deny warnings
 
-      - if: always() && !cancelled() && (steps.changed.outputs.src == 'true' || github.event_name == 'push')
-        run: scripts/exitcode.sh
-
       - if: always() && !cancelled()
         name: relcheck
         run: |
           relcheck all --verbose --color=always
-
-      - if: always() && !cancelled() && (steps.changed.outputs.rust == 'true' || steps.changed.outputs.release == 'true' || github.event_name == 'push') && ! endsWith(github.event.head_commit.author.name, '[bot]')
-        id: semantic
-        name: Require semantic version label
-        uses: anttiharju/actions/semver-label@v0
-        with:
-          require: ${{ steps.changed.outputs.rust == 'true' || steps.changed.outputs.release == 'true' }}
 
       - if: always() && !cancelled()
         name: action-validator

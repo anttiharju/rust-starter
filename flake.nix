@@ -24,7 +24,6 @@
       ...
     }:
     let
-      container_version = "1.0.0";
       supportedSystems = [
         "x86_64-linux"
         "aarch64-linux"
@@ -52,10 +51,11 @@
         in
         [
           rustToolchain
-          zig
+          nur-anttiharju.legacyPackages.${system}.zig."custom" # TODO: switch back to upstream Zig once 0.16 is available through stable nixpkgs (https://codeberg.org/ziglang/zig/pulls/30628)
           # action-validator # disabled because it uses glob instead of this library
           actionlint
           anttiharju.relcheck
+          anttiharju.compare-changes
           editorconfig-checker
           (python313.withPackages (
             ps: with ps; [
@@ -85,7 +85,6 @@
         ];
     in
     {
-      container_version = container_version; # This is here so that 'nix eval .#container_version --raw' works
       devShells = forAllSystems (
         system:
         let
@@ -99,16 +98,9 @@
             ];
 
             shellHook = ''
+              export SDKROOT=/dev/null
               lefthook install
-            ''
-            + (
-              if pkgs.stdenv.isDarwin then
-                ''
-                  export CARGO_TARGET_AARCH64_APPLE_DARWIN_LINKER="$(xcrun --find cc)" # https://github.com/anttiharju/compare-changes/issues/35
-                ''
-              else
-                ""
-            );
+            '';
           };
         }
       );
@@ -120,35 +112,40 @@
           anttiharju = nur-anttiharju.packages.${system};
 
           # Fix not being able to run the unpatched node binaries that GitHub Actions mounts into the container
-          nix_ld_setup = pkgs.runCommand "nix-ld-setup" { } ''
+          ld = pkgs.runCommand "ld" { } ''
             mkdir -p $out/lib64
             install -D -m755 ${pkgs.nix-ld}/libexec/nix-ld "$out/lib64/$(basename ${pkgs.stdenv.cc.bintools.dynamicLinker})"
           '';
 
-          # Package the in-repo zig wrappers so we can bake them into the image (relative path ./scripts/zcc)
-          zcc_scripts = pkgs.runCommand "zcc-scripts" { } ''
+          # Package the in-repo zig wrappers so we can bake them into the image (relative path ./.cargo/zcc)
+          zcc = pkgs.runCommand "zcc" { } ''
             mkdir -p $out/bin
-            cp -a ${./scripts/zcc}/* $out/bin/
+            cp -a ${./.cargo/zcc}/* $out/bin/
             chmod +x $out/bin/*
           '';
         in
         pkgs.lib.optionalAttrs (system == "x86_64-linux" || system == "aarch64-linux") {
           ci = pkgs.dockerTools.streamLayeredImage {
             name = "ci";
-            tag = container_version;
+            tag = "current";
             contents = (devPackages pkgs anttiharju system) ++ [
-              nix_ld_setup
+              ld
+              zcc
               pkgs.binutils
-              zcc_scripts
               pkgs.dockerTools.caCertificates
               pkgs.sudo
               pkgs.nix.out
               pkgs.dockerTools.usrBinEnv
-              anttiharju.compare-changes
             ];
             config = {
               User = "1001"; # https://github.com/actions/runner/issues/2033#issuecomment-1598547465
+              Labels = {
+                "org.opencontainers.image.description" =
+                  "This CI container image (apart from the flake.nix definition) is not covered by the license(s) of the source GitHub repository.";
+                "org.opencontainers.image.licenses" = "NOASSERTION";
+              };
               Env = [
+                "SDKROOT=/dev/null"
                 "CC_aarch64-apple-darwin=/zcc/aarch64-apple-darwin.sh"
                 "CC_aarch64-unknown-linux-gnu=/zcc/aarch64-unknown-linux-gnu.sh"
                 "CC_x86_64-unknown-linux-gnu=/zcc/x86_64-unknown-linux-gnu.sh"
@@ -186,7 +183,7 @@
               mkdir -p /tmp
               chmod 1777 /tmp
 
-              # Enable 'nix eval .#container_version --raw' and 'nix flake update' inside the container
+              # Enable 'nix flake update' inside the container
               mkdir -p /etc/nix
               echo "experimental-features = nix-command flakes" > /etc/nix/nix.conf
 
@@ -196,9 +193,12 @@
 
               # Install zig cc wrappers to /zcc
               mkdir -p /zcc
-              install -D -m755 ${zcc_scripts}/bin/aarch64-apple-darwin.sh /zcc/aarch64-apple-darwin.sh
-              install -D -m755 ${zcc_scripts}/bin/aarch64-unknown-linux-gnu.sh /zcc/aarch64-unknown-linux-gnu.sh
-              install -D -m755 ${zcc_scripts}/bin/x86_64-unknown-linux-gnu.sh /zcc/x86_64-unknown-linux-gnu.sh
+              install -D -m755 ${zcc}/bin/aarch64-apple-darwin.sh /zcc/aarch64-apple-darwin.sh
+              install -D -m755 ${zcc}/bin/aarch64-unknown-linux-gnu.sh /zcc/aarch64-unknown-linux-gnu.sh
+              install -D -m755 ${zcc}/bin/x86_64-unknown-linux-gnu.sh /zcc/x86_64-unknown-linux-gnu.sh
+
+              # Just avoid extra diffs when using a Dockerfile to inspect changes
+              mkdir -p /proc /dev /sys
             '';
           };
         }

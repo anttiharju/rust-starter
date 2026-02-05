@@ -15,7 +15,7 @@ runs:
   using: "composite"
   steps:
     - name: Generate commit token
-      uses: actions/create-github-app-token@v1
+      uses: actions/create-github-app-token@v2
       id: generate
       with:
         app-id: ${{ inputs.ANTTIHARJU_BOT_ID }}
@@ -36,10 +36,9 @@ runs:
         git reset --hard && git clean -df
         toml set Cargo.toml package.version "$version" > Cargo.toml.tmp && mv Cargo.toml.tmp Cargo.toml
         cargo update --package "$package"
-        yq -i ".inputs.version.default = \"$version\"" action.yml
 
         export major="${version%%.*}"
-        git ls-files -z | xargs --null gawk -i inplace -v repo="$GITHUB_REPOSITORY" -v major="$major" '{gsub(repo "@v[0-9]+", repo "@v" major); print}'
+        git ls-files -z | xargs --null gawk -i inplace -v repo="${GITHUB_REPOSITORY}-action" -v major="$major" '{gsub(repo "@v[0-9]+", repo "@v" major); print}'
     - name: Get pull request number
       id: pr
       shell: sh
@@ -49,7 +48,7 @@ runs:
         pr_number="$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/pulls" --jq '.[0].number')"
         echo "number=$pr_number" >> "$GITHUB_OUTPUT"
     - name: Commit changes
-      uses: anttiharju/actions/commit-changes@v0
+      uses: ./.github/actions/commit-changes
       with:
         author: "${{ github.actor }}[bot]"
         committer: "${{ github.actor }}[bot]"
