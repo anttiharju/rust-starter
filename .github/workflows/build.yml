@@ -60,13 +60,6 @@ jobs:
           anttiharju-bot-id: ${{ secrets.ANTTIHARJU_BOT_ID }}
           anttiharju-bot-private-key: ${{ secrets.ANTTIHARJU_BOT_PRIVATE_KEY }}
 
-      - name: Action
-        uses: ./.github/actions/release/action
-        with:
-          version: ${{ needs.plan.outputs.version }}
-          anttiharju-bot-id: ${{ secrets.ANTTIHARJU_BOT_ID }}
-          anttiharju-bot-private-key: ${{ secrets.ANTTIHARJU_BOT_PRIVATE_KEY }}
-
       - name: Documentation
         uses: ./.github/actions/release/documentation
 
