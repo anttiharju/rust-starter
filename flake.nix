@@ -6,7 +6,7 @@
     "https://anttiharju.cachix.org"
   ];
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs?ref=nixos-25.11";
+    nixpkgs.url = "github:nixos/nixpkgs?ref=nixpkgs-unstable";
     nur-anttiharju.url = "github:anttiharju/nur-packages";
     nur-anttiharju.inputs.nixpkgs.follows = "nixpkgs";
     fenix = {
@@ -53,33 +53,27 @@
           rustToolchain
           toml-cli
           nur-anttiharju.legacyPackages.${system}.zig."custom" # TODO: switch back to upstream Zig once 0.16 is available through stable nixpkgs (https://codeberg.org/ziglang/zig/pulls/30628)
-          anttiharju.action-validator
+          anttiharju.action-validator # Switch to upstream after 25.11
           actionlint
           anttiharju.relcheck
           anttiharju.compare-changes
           editorconfig-checker
-          (python313.withPackages (
-            ps: with ps; [
-              mkdocs-material
-            ]
-          ))
+          zensical
           prettier
           rubocop
           shellcheck
           gh
-          yq-go
-          ripgrep
           # Everything below is required by GitHub Actions
-          uutils-coreutils-noprefix
+          coreutils
           bash
-          git
+          gitMinimal
           findutils
           gnutar
           curl
           jq
           gzip
           envsubst
-          gawkInteractive
+          gawk
           xz
           gnugrep
         ];
