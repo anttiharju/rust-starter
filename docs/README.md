@@ -5,7 +5,9 @@
 How to use (only works for Antti):
 
 1. Use template. Do not choose a repository name that ends with `-starter`
-2. About -> Gear icon -> Edit repository details -> Fill in website. Some of the templating relies on this.
+2. About -> Gear icon -> Edit repository details and
+   - Add Description
+   - Fill in Website
 3. Add `ANTTIHARJU_BOT_ID` and `ANTTIHARJU_BOT_PRIVATE_KEY` in Settings -> Secrets and Variables -> Actions
 4. When opening the first pull request, go Labels -> Edit labels -> New label and add:
    - `major-release` (click on hex color to reveal defaults, leftmost / top row dark red)
