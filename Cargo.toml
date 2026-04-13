@@ -1,11 +1,12 @@
 [package]
+version = "0.0.0"
+
 license = "MIT"
 description = "rust-starter is a template for my Rust projects to make it easier to start new ones."
 homepage = "https://anttiharju.dev/rust-starter/"
 repository = "https://github.com/anttiharju/rust-starter"
 readme = "docs/README.md"
 name = "rust-starter"
-version = "0.0.0"
 edition = "2024"
 include = ["src/**", "tests/**"]
 
