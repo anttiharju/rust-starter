@@ -4,11 +4,12 @@ on:
     branches:
       - wildcard
     paths:
-      - "**.md"
-      - "**.yml"
-      - "flake.nix"
+      - ".github/workflows/wildcard/rs.yml"
+      - "**.rs"
+      - "Cargo.lock"
+      - "Cargo.toml"
       - "flake.lock"
-      - ".github/workflows/wildcard-prettier.yml"
+      - "flake.nix"
 jobs:
   wildcard:
     runs-on: ubuntu-latest

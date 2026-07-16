@@ -1,9 +1,5 @@
 name: "Release to crates.io"
 description: "Publish the Rust crate to crates.io"
-inputs:
-  cargo_registry_token:
-    description: "Cargo registry token (crates.io) with publish-update scopes"
-    required: true
 runs:
   using: "composite"
   steps:
