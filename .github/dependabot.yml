@@ -2,20 +2,34 @@
 # https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
 
 version: 2
+multi-ecosystem-groups:
+  dependency:
+    schedule:
+      interval: "weekly"
 updates:
   - package-ecosystem: "cargo"
     directory: "/"
-    schedule:
-      interval: "weekly"
-    groups:
-      cargo:
-        patterns:
-          - "*"
-  - package-ecosystem: "github-actions"
+    patterns:
+      - "*"
+    multi-ecosystem-group: "dependency"
+  - package-ecosystem: "nix"
     directory: "/"
-    schedule:
-      interval: "weekly"
-    groups:
-      github-actions:
-        patterns:
-          - "*"
+    patterns:
+      - "*"
+    multi-ecosystem-group: "dependency"
+  - package-ecosystem: "github-actions"
+    directories:
+      - "/"
+      - "/.github/actions/*"
+    patterns:
+      - "*"
+    ignore:
+      - dependency-name: "anttiharju/*"
+        update-types:
+          - "version-update:semver-minor"
+          - "version-update:semver-patch"
+      - dependency-name: "cachix/*"
+        update-types:
+          - "version-update:semver-minor"
+          - "version-update:semver-patch"
+    multi-ecosystem-group: "dependency"

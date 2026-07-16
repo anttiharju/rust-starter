@@ -29,10 +29,13 @@ runs:
         persist-credentials: true
     - working-directory: release-nur-packages
       shell: sh
+      env:
+        NIX_CONFIG: "access-tokens = github.com=${{ github.token }}"
       run: nix flake update
     - name: Render Nix expression
       shell: sh
       env:
+        NIX_CONFIG: "access-tokens = github.com=${{ github.token }}"
         GH_TOKEN: ${{ github.token }}
         output: "release-nur-packages/pkgs/${{ github.event.repository.name }}"
       run: |
@@ -41,12 +44,11 @@ runs:
     - name: Commit changes
       uses: ./.github/actions/commit-changes
       with:
+        author: anttiharju[bot]
+        committer: anttiharju[bot]
         working-directory: release-nur-packages
-        committer: ${{ github.actor }}
         message: |
           ${{ github.event.repository.name }} ${{ inputs.version }}
-
-          https://github.com/${{ github.repository }}/blob/${{ github.sha }}/.github/workflows/release.yml
     - if: always()
       name: Cleanup
       shell: sh
