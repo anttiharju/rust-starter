@@ -20,6 +20,7 @@ runs:
         app-id: ${{ inputs.anttiharju-bot-id }}
         private-key: ${{ inputs.anttiharju-bot-private-key }}
         repositories: nur-packages
+        permission-contents: write
     - name: Checkout
       uses: actions/checkout@v7
       with:
