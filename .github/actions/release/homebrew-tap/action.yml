@@ -15,13 +15,13 @@ runs:
   steps:
     - name: Generate commit token
       id: generate-token
-      uses: actions/create-github-app-token@v2
+      uses: actions/create-github-app-token@v3
       with:
         app-id: ${{ inputs.anttiharju-bot-id }}
         private-key: ${{ inputs.anttiharju-bot-private-key }}
         repositories: homebrew-tap
     - name: Checkout
-      uses: actions/checkout@v6
+      uses: actions/checkout@v7
       with:
         repository: anttiharju/homebrew-tap
         token: ${{ steps.generate-token.outputs.token }}
