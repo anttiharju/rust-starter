@@ -1,6 +1,4 @@
 [package]
-version = "0.0.0"
-
 license = "MIT"
 description = "rust-starter is a template for my Rust projects to make it easier to start new ones."
 homepage = "https://anttiharju.dev/rust-starter/"
