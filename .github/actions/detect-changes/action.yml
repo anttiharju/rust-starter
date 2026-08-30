@@ -8,83 +8,110 @@ runs:
   using: "composite"
   steps:
     - id: actionlint
-      shell: sh
-      env:
-        array: ${{ inputs.changes }}
-      run: |
-        compare-changes --changes "$array" --workflow wildcard/actionlint.yml
+      uses: anttiharju/compare-changes-action@v0
+      with:
+        paths: |
+          .github/*/**.yml
+          flake.lock
+          flake.nix
+        changes: ${{ inputs.changes }}
     - id: prettier
-      shell: sh
-      env:
-        array: ${{ inputs.changes }}
-      run: |
-        compare-changes --changes "$array" --workflow wildcard/prettier.yml
+      uses: anttiharju/compare-changes-action@v0
+      with:
+        paths: |
+          **.md
+          **.yml
+          flake.lock
+          flake.nix
+        changes: ${{ inputs.changes }}
     - id: brew
-      shell: sh
-      env:
-        array: ${{ inputs.changes }}
-      run: |
-        compare-changes --changes "$array" --workflow wildcard/release-brew.yml
-    # flake.yml is only used in the plan.yml container job
+      uses: anttiharju/compare-changes-action@v0
+      with:
+        paths: |
+          .release/brew/**
+          flake.lock
+          flake.nix
+        changes: ${{ inputs.changes }}
     - id: github
-      shell: sh
-      env:
-        array: ${{ inputs.changes }}
-      run: |
-        compare-changes --changes "$array" --workflow wildcard/release-github.yml
+      uses: anttiharju/compare-changes-action@v0
+      with:
+        paths: |
+          .release/archive.sh
+          flake.lock
+          flake.nix
+        changes: ${{ inputs.changes }}
     - id: nix
-      shell: sh
-      env:
-        array: ${{ inputs.changes }}
-      run: |
-        compare-changes --changes "$array" --workflow wildcard/release-nix.yml
+      uses: anttiharju/compare-changes-action@v0
+      with:
+        paths: |
+          .release/nix/**
+          flake.lock
+          flake.nix
+        changes: ${{ inputs.changes }}
     - id: rs
-      shell: sh
-      env:
-        array: ${{ inputs.changes }}
-      run: |
-        compare-changes --changes "$array" --workflow wildcard/rs.yml
+      uses: anttiharju/compare-changes-action@v0
+      with:
+        paths: |
+          **.rs
+          Cargo.lock
+          Cargo.toml
+          flake.lock
+          flake.nix
+        changes: ${{ inputs.changes }}
     - id: rust
-      shell: sh
-      env:
-        array: ${{ inputs.changes }}
-      run: |
-        compare-changes --changes "$array" --workflow wildcard/rust.yml
+      uses: anttiharju/compare-changes-action@v0
+      with:
+        paths: |
+          .cargo/**
+          src/**
+          tests/**
+          Cargo.lock
+          Cargo.toml
+          flake.lock
+          flake.nix
+        changes: ${{ inputs.changes }}
     - id: shellcheck
-      shell: sh
-      env:
-        array: ${{ inputs.changes }}
-      run: |
-        compare-changes --changes "$array" --workflow wildcard/shellcheck.yml
+      uses: anttiharju/compare-changes-action@v0
+      with:
+        paths: |
+          **.sh
+          .shellcheckrc
+          flake.lock
+          flake.nix
+        changes: ${{ inputs.changes }}
     - id: src
-      shell: sh
-      env:
-        array: ${{ inputs.changes }}
-      run: |
-        compare-changes --changes "$array" --workflow wildcard/src.yml
+      uses: anttiharju/compare-changes-action@v0
+      with:
+        paths: |
+          src/**
+          flake.lock
+          flake.nix
+        changes: ${{ inputs.changes }}
     - id: zensical
-      shell: sh
-      env:
-        array: ${{ inputs.changes }}
-      run: |
-        compare-changes --changes "$array" --workflow wildcard/zensical.yml
+      uses: anttiharju/compare-changes-action@v0
+      with:
+        paths: |
+          docs/**
+          zensical.toml
+          flake.lock
+          flake.nix
+        changes: ${{ inputs.changes }}
     - id: zizmor
-      shell: sh
-      env:
-        array: ${{ inputs.changes }}
-      run: |
-        compare-changes --changes "$array" --workflow wildcard/zizmor.yml
+      uses: anttiharju/compare-changes-action@v0
+      with:
+        paths: |
+          **/action.yml
+          .github/workflows/*.yml
+          flake.lock
+          flake.nix
+        changes: ${{ inputs.changes }}
 outputs:
   actionlint:
     description: "Whether actionlint has changed"
     value: ${{ steps.actionlint.outputs.changed }}
-  # flake.yml is only used in the plan.yml container job
   prettier:
     description: "Whether Prettier has changed"
     value: ${{ steps.prettier.outputs.changed }}
-  action:
-    description: "Whether action has changed"
-    value: ${{ steps.action.outputs.changed }}
   brew:
     description: "Whether Brew has changed"
     value: ${{ steps.brew.outputs.changed }}

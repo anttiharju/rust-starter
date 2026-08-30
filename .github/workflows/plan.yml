@@ -27,18 +27,22 @@ jobs:
     steps:
       - name: Find changes
         id: changes
-        uses: anttiharju/find-changes-action@v2
+        uses: anttiharju/find-changes-action@v0 # handles checkout
       - name: Compare changes
         id: flake
         uses: anttiharju/compare-changes-action@v0
         with:
-          workflow: wildcard/flake.yml
+          paths: |
+            .cargo/zig/**
+            flake.lock
+            flake.nix
           changes: ${{ steps.changes.outputs.array }}
+          validate: true
       - if: steps.flake.outputs.changed == 'true'
         name: Install Nix
         uses: cachix/install-nix-action@v31
         with:
-          nix_path: nixpkgs=channel:nixos-25.05
+          nix_path: nixpkgs=channel:nixos-26.05
           extra_nix_config: |
             trusted-substituters = https://cache.nixos.org https://nix-community.cachix.org https://anttiharju.cachix.org
             trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs= anttiharju.cachix.org-1:1/w1vNdGsG6EynEoWhjJLJ2rxqde2BP+wkKM+YdOxMQ=
@@ -69,7 +73,7 @@ jobs:
       - if: steps.flake.outputs.changed == 'true'
         name: Log in to registry
         env:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ github.token }}
           actor: ${{ github.actor }}
         run: |
           echo "$github_token" | docker login ghcr.io -u "$actor" --password-stdin
@@ -130,7 +134,7 @@ jobs:
     steps:
       - name: Find changes
         id: changes
-        uses: anttiharju/find-changes-action@v2
+        uses: anttiharju/find-changes-action@v0 # handles checkout
 
       - name: Detect changes
         id: changed
@@ -153,7 +157,7 @@ jobs:
         run: cargo build --locked --all-features --target aarch64-apple-darwin
       - if: always() && !cancelled() && (steps.changed.outputs.rust == 'true' || github.event_name == 'push')
         run: cargo build --locked --all-features --target aarch64-unknown-linux-musl
-      - if: always() && !cancelled() && (steps.changed.outputs.rust == 'true' || github.event_name == 'push' || steps.changed.outputs.action == 'true' )
+      - if: always() && !cancelled() && (steps.changed.outputs.rust == 'true' || github.event_name == 'push' )
         run: cargo build --locked --all-features --target x86_64-unknown-linux-musl
 
       - if: always() && !cancelled() && (steps.changed.outputs.rust == 'true' || github.event_name == 'push')
@@ -169,48 +173,6 @@ jobs:
         name: relcheck
         run: |
           relcheck all --verbose --color=always
-
-      - if: always() && !cancelled() && ((steps.changed.outputs.action == 'true' && github.event_name != 'push' && steps.semantic.outputs.type != 'major') || (steps.changed.outputs.action == 'true' || github.event_name == 'push' || steps.changed.outputs.rust == 'true'))
-        name: Render action.yml
-        run: |
-          .release/render.sh action
-
-      - if: always() && !cancelled() && steps.changed.outputs.action == 'true' && github.event_name != 'push' && steps.semantic.outputs.type != 'major'
-        name: Test action (release binary)
-        uses: ./.release/action
-        with:
-          workflow: wildcard/release-action.yml
-          changes: ${{ steps.changes.outputs.array }}
-      - if: always() && !cancelled() && steps.changed.outputs.action == 'true' && github.event_name != 'push' && steps.semantic.outputs.type != 'major'
-        name: Test chained use (release binary)
-        uses: ./.release/action
-        with:
-          workflow: wildcard/release-action.yml
-          changes: ${{ steps.changes.outputs.array }}
-
-      - if: always() && !cancelled() && (steps.changed.outputs.action == 'true' || github.event_name == 'push' || steps.changed.outputs.rust == 'true')
-        name: Move compiled version to /usr/local/bin
-        env:
-          binary: ${{ github.event.repository.name }}
-        run: |
-          mv "target/x86_64-unknown-linux-musl/debug/$binary" /usr/local/bin/
-      - if: always() && !cancelled() && (steps.changed.outputs.action == 'true' || github.event_name == 'push' || steps.changed.outputs.rust == 'true')
-        name: Test action (compiled binary)
-        id: action
-        uses: ./.release/action
-        with:
-          workflow: wildcard/release-action.yml
-          changes: '[".release/action/action.yml"]'
-          debug: true
-      - if: always() && !cancelled() && (steps.changed.outputs.action == 'true' || github.event_name == 'push' || steps.changed.outputs.rust == 'true')
-        name: Test action output (compiled binary)
-        env:
-          changed: ${{ steps.action.outputs.changed }}
-        run: |
-          echo "steps.action.outputs.changed: \"$changed\"=\"true\""
-          if [[ "$changed" != "true" ]]; then
-            exit 1
-          fi
 
       - if: always() && !cancelled()
         name: action-validator
@@ -240,7 +202,7 @@ jobs:
 
       - if: always() && !cancelled() && (steps.changed.outputs.zensical == 'true' || github.event_name == 'push')
         name: zensical
-        run: zensical build
+        run: zensical build --strict
 
       - if: always() && !cancelled() && (steps.changed.outputs.prettier == 'true' || github.event_name == 'push')
         name: prettier

@@ -9,7 +9,7 @@ edition = "2024"
 include = ["src/**", "tests/**"]
 
 [dependencies]
-anstyle = "1.0"
+anstyle = { version = "1.0" }
 clap = { version = "4.6", features = ["cargo", "derive"] }
 
 [dev-dependencies]
